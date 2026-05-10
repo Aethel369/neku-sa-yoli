@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enjambre DevSecOps - Panal Seguro</title>
+    <style>
+        body { 
+            font-family: 'Courier New', Courier, monospace; 
+            background-color: #0d1117; 
+            color: #58a6ff; 
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+        h2 { color: #c9d1d9; }
+        #consola { 
+            width: 80%; 
+            max-width: 800px; 
+            height: 450px; 
+            background-color: #010409; 
+            border: 1px solid #30363d; 
+            border-radius: 6px; 
+            padding: 15px; 
+            overflow-y: auto; 
+            margin-bottom: 20px; 
+            box-shadow: 0 0 15px rgba(46, 160, 67, 0.2); 
+        }
+        .mensaje { margin: 8px 0; line-height: 1.5; white-space: pre-wrap; }
+        .yo { color: #ff7b72; font-weight: bold; }
+        .agente { color: #3fb950; }
+        .alerta { color: #f85149; font-weight: bold; border-left: 3px solid #f85149; padding-left: 10px; }
+        
+        #controles { width: 80%; max-width: 800px; display: flex; gap: 10px; }
+        input { 
+            flex-grow: 1; 
+            padding: 12px; 
+            background-color: #010409; 
+            border: 1px solid #30363d; 
+            color: #c9d1d9; 
+            border-radius: 6px; 
+            font-family: inherit;
+        }
+        input:focus { outline: none; border-color: #58a6ff; }
+        button { 
+            padding: 10px 25px; 
+            background-color: #2ea043; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+        }
+        button:hover { background-color: #3fb950; }
+    </style>
+</head>
+<body>
+
+    <h2>🐝 Enjambre DevSecOps: Panal Seguro</h2>
+    
+    <div id="consola">
+        <div class="mensaje agente">Conectando con el núcleo del enjambre...</div>
+    </div>
+
+    <div id="controles">
+        <input type="text" id="requerimiento" placeholder="Escribe un requerimiento o intenta un ataque..." autocomplete="off">
+        <button onclick="enviarRequerimiento()">Ejecutar</button>
+    </div>
+
+    <script>
+        const consola = document.getElementById('consola');
+        const input = document.getElementById('requerimiento');
+        
+        // El WebSocket se conecta a la ruta /ws de nuestro servidor Axum
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+
+        // TOKEN DE SEGURIDAD: Debe coincidir con el del backend en Rust
+        const AUTH_TOKEN = "panal_seguro_2026"; 
+
+        ws.onopen = () => {
+            agregarMensaje('agente', '🟢 [ENCRIPTADO] Conexión establecida. Protocolo JSON activo.');
+        };
+
+        ws.onmessage = (evento) => {
+            const texto = evento.data;
+            // Si el mensaje contiene palabras de error o bloqueo, lo pintamos como alerta
+            if (texto.includes("BLOQUEO") || texto.includes("ERROR") || texto.includes("DENEGADA")) {
+                agregarMensaje('alerta', texto);
+            } else {
+                agregarMensaje('agente', texto);
+            }
+        };
+
+        ws.onclose = () => {
+            agregarMensaje('alerta', '🔴 Conexión perdida con el servidor Rust.');
+        };
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') enviarRequerimiento();
+        });
+
+        function enviarRequerimiento() {
+            const texto = input.value.trim();
+            if (texto !== '' && ws.readyState === WebSocket.OPEN) {
+                agregarMensaje('yo', `> [TX]: ${texto}`);
+                
+                // IMPORTANTE: Enviamos un objeto JSON, no texto plano
+                const payload = JSON.stringify({
+                    auth_token: AUTH_TOKEN,
+                    requerimiento: texto
+                });
+                
+                ws.send(payload);
+                input.value = '';
+            }
+        }
+
+        function agregarMensaje(clase, texto) {
+            const div = document.createElement('div');
+            div.className = `mensaje ${clase}`;
+            div.textContent = texto;
+            consola.appendChild(div);
+            // Auto-scroll al final de la consola
+            consola.scrollTop = consola.scrollHeight;
+        }
+    </script>
+</body>
+</html>
